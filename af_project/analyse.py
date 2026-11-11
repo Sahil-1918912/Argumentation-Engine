@@ -1,62 +1,73 @@
-"""Classify WHY an instance is strategyproof although the Thm 5.4 condition fails."""
-from collections import Counter
-from argumentation import ArgumentationFramework
-from strategic import odd_path_exists
+"""Explain WHY an instance can be strategyproof although the Theorem 5.4 condition fails.
 
-def status(af, G, x):
-    if x in G: return "in"
-    if af.attackers_of(x) & G or any(y in G for y in af.attackers_of(x)): return "out"
-    return "undec"
+For a strategyproof instance we look at every 'deviation' (agent i, a combination of the
+others' reports, a strictly smaller report R of i) and compare it with truthful reporting.
+Strategyproofness means no deviation is strictly better, so every deviation is either
 
-def odd_paths_simple(attacks, s, t, maxlen=9):
-    succ = {}
-    for a, b in attacks: succ.setdefault(a, []).append(b)
-    res = []
-    def dfs(v, path):
-        for w in succ.get(v, []):
-            if w == t and len(path) % 2 == 1: res.append(path + [w])
-            if w not in path: dfs(w, path + [w])
-    dfs(s, [s]); return res
+  * 'same'  : own accepted set  A_i n E  is unchanged                 (deviation is irrelevant)
+  * 'swap'  : own accepted set changes but its SIZE (= utility) is equal   (zero-sum trade-off)
+  * 'loss'  : utility is strictly lower                                  (deviation hurts)
 
-def classify(agents, attacks, viol):
-    """Return a reason label for the (first) violating pair of the instance."""
-    args = frozenset().union(*agents.values())
-    af = ArgumentationFramework(args, attacks)
-    G = af.grounded_extension()
-    reasons = set()
-    for (i, a, b) in viol:
-        sa, sb = status(af, G, a), status(af, G, b)
-        # an odd path exists but alpha is already decided/never helps hiding:
-        reasons.add(f"alpha={sa},beta={sb}")
-    return reasons
-
-def explain_stats(rows, key="viol_walk", cond="cond_walk"):
-    c = Counter()
-    for r in rows:
-        if r["sp"] and not r[cond]:
-            labs = classify(r["agents"], r["attacks"], r[key])
-            # label the instance by the "best" reason: prefer a pair with undec/undec
-            c[tuple(sorted(labs))] += 1
-    return c
+Each strategyproof instance is labelled by the 'most interesting' kind of deviation it contains:
+    swap  >  loss-only  >  inert
+  swap       : at least one deviation is a swap (hiding really changes what is accepted, but
+               the agent gains exactly as much as it loses).
+  loss-only  : no swap, at least one deviation strictly hurts the agent.
+  inert      : every deviation leaves the agent's accepted set unchanged.
+(The three labels are exhaustive and mutually exclusive.)
+"""
+from strategic import _Fast, _submasks
 
 
-def has_tie_deviation(agents, attacks):
-    """Is there an agent / combination of others' reports / strictly smaller own report
-    that gives the SAME utility as truthful reporting but a different grounded extension
-    restricted to A_i (i.e. a real trade-off, 'swap', rather than irrelevance)?"""
-    from strategic import _Fast, _submasks
-    F = _Fast(agents, attacks); ids = list(agents)
+def _popcount(m):
+    return bin(m).count("1")
+
+
+def _deviations(agents, attacks):
+    """Yield (agent, others_mask, R_mask, truthful_set_mask, dev_set_mask) for every strictly
+    smaller report R of every agent against every combination of the others' reports."""
+    F = _Fast(agents, attacks)
+    ids = list(agents)
     A = {i: F.mask(agents[i]) for i in ids}
     for i in ids:
-        others = [j for j in ids if j != i]
         combos = [0]
-        for j in others:
-            combos = [c | s for c in combos for s in _submasks(A[j])]
+        for j in ids:
+            if j != i:
+                combos = [c | s for c in combos for s in _submasks(A[j])]
         for oth in combos:
             g_truth = F.grounded(oth | A[i]) & A[i]
             for R in _submasks(A[i]):
-                if R == A[i]: continue
-                g = F.grounded(oth | R) & A[i]
-                if g != g_truth and bin(g).count("1") == bin(g_truth).count("1"):
-                    return True
+                if R != A[i]:
+                    yield F, i, oth, R, g_truth, F.grounded(oth | R) & A[i]
+
+
+def classify_instance(agents, attacks):
+    """Label a strategyproof instance 'swap', 'loss-only' or 'inert' (see module doc).
+    Raises AssertionError if a deviation is strictly profitable (instance not strategyproof)."""
+    has_swap = has_loss = False
+    for _F, _i, _oth, _R, gt, gd in _deviations(agents, attacks):
+        ut, ud = _popcount(gt), _popcount(gd)
+        assert ud <= ut, "instance is not strategyproof"
+        if ud < ut:
+            has_loss = True
+        elif gd != gt:
+            has_swap = True
+    return "swap" if has_swap else ("loss-only" if has_loss else "inert")
+
+
+def has_tie_deviation(agents, attacks):
+    """True iff the instance contains a 'swap' deviation (equal utility, different accepted set)."""
+    for _F, _i, _oth, _R, gt, gd in _deviations(agents, attacks):
+        if gd != gt and _popcount(gd) == _popcount(gt):
+            return True
     return False
+
+
+def find_swap_example(agents, attacks):
+    """A concrete swap deviation, decoded for printing, or None."""
+    for F, i, oth, R, gt, gd in _deviations(agents, attacks):
+        if gd != gt and _popcount(gd) == _popcount(gt):
+            dec = lambda m: sorted(F.args[k] for k in range(len(F.args)) if m >> k & 1)
+            return dict(agent=i, others_reveal=dec(oth), agent_hides=dec(F.mask(agents[i]) & ~R),
+                        accepted_truthful=dec(gt), accepted_after_hiding=dec(gd))
+    return None

@@ -1,25 +1,26 @@
-# Assignment 3 – Argumentation Engine & Strategic Argumentation
+# Argumentation Engine & Strategic Argumentation
 
-Pure Python 3 (standard library only, no installs needed).
+Pure Python 3 (standard library only, nothing to install). Developed and tested on Python 3.11.
 
 ## Files
 | File | Content |
 |---|---|
-| `argumentation.py` | **Part 1.** `ArgumentationFramework` class + conflict-free, defends, characteristic function, admissible / complete, grounded, complete / preferred / stable / semi-stable extensions, legal labellings, acceptance status. Function-style wrappers at the bottom. |
-| `strategic.py` | **Part 2.** `mechanism` (grounded direct mechanism), `best_responses`, `check_truthfulness` (Thm 5.3 check), `is_strategyproof`, `theorem_5_4_condition` / `odd_path_exists` (Thm 5.4 condition, cycle-safe). |
+| `argumentation.py` | **Part 1.** `ArgumentationFramework` class: conflict-free, `defends`, characteristic function, admissible / complete, grounded, complete / preferred / stable / semi-stable extensions, legal labellings, acceptance status. Function-style wrappers at the bottom. |
+| `strategic.py` | **Part 2.** `mechanism`, `best_responses`, `check_truthfulness` (Theorem 5.3, best-response form), `check_theorem_5_3` (Theorem 5.3, literal inequality form), `is_strategyproof`, `theorem_5_4_condition`, `find_odd_path` / `odd_path_exists`, `explain_violations`, `validate_instance`. |
+| `book_examples.py` | The book's Examples 5.10 and 5.11 (Figures 5.4, 5.5) as data, with the misprints documented. |
 | `experiments.py` | Random instance generator + per-instance records. |
-| `analyse.py` | Helpers used to explain "strategyproof although the condition fails". |
-| `run_experiments.py` | Runs the whole experiment, writes `results/`. |
-| `tests.py` | Sanity tests and cross-checks (e.g. labellings <-> complete extensions, fast bitmask grounded == class-based grounded). |
-| `demo.py`, `demo_output.txt` | Demonstration script and its captured output. |
-| `REPORT.md` | Report with results and explanations. |
-| `results/` | `results.md` (tables), `instances.json` (all 3000 instances), `notable_instances.json`. |
+| `analyse.py` | Classifies *why* an instance is strategyproof although the Theorem 5.4 condition fails (swap / loss-only / inert). |
+| `run_experiments.py` | Runs the whole experiment and writes `results/`. |
+| `tests.py` | 14 test groups: known results, book examples, cross-checks between independent implementations. |
+| `demo.py`, `demo_output.txt` | Demonstration script and its captured output. `DEMO.md` is a talk-through guide for the recording. |
+| `REPORT.md` | Report material: definitions, design, results, explanations. |
+| `results/` | `results.md` (tables), `instances.json` (all 3000 main-setting instances), `notable_instances.json` (concrete examples). |
 
 ## Run
 ```
-python3 tests.py              # all tests
-python3 demo.py               # demonstration (Part 1 examples + Part 2 examples)
-python3 run_experiments.py    # 1000 instances per p (about 1 min); optional arg = N
+python tests.py              # all tests (a few seconds)
+python demo.py               # demonstration (prints only; to save: python demo.py > demo_output.txt)
+python run_experiments.py    # 1000 instances per p, main + self-attack variant (about 1-2 minutes); optional arg = N
 ```
 
 ## Usage
@@ -27,32 +28,37 @@ python3 run_experiments.py    # 1000 instances per p (about 1 min); optional arg
 from argumentation import ArgumentationFramework as AF
 af = AF("abc", {("a","b"), ("b","c")})        # a attacks b, b attacks c
 af.grounded_extension(); af.complete_extensions(); af.all_extensions()
-af.labellings(); af.acceptance_status("a")     # 'skeptically accepted'
+af.extensions("stable")                        # one semantics only
+af.labellings()
+af.acceptance_status("a")                      # 'skeptically accepted' (preferred semantics by default)
+af.acceptance_status("a", "stable")            # any of: grounded complete preferred stable semi-stable
+af.acceptance_by_semantics("a")                # the status under all five
 
 from strategic import *
-agents  = {1: frozenset({"x","y"}), 2: frozenset({"z"})}   # TRUE argument sets
+agents  = {1: frozenset({"x","y"}), 2: frozenset({"z"})}   # TRUE argument sets (must be disjoint)
 attacks = {("x","z"), ("z","y")}
-mechanism(attacks, {1: {"x"}, 2: {"z"}})                    # grounded ext. of revealed graph
+mechanism(attacks, {1: {"x"}, 2: {"z"}})                    # grounded ext. of the revealed graph
 best_responses(1, agents, attacks, {2: agents[2]})          # (best utility, [best reports])
 check_truthfulness(agents, attacks)                         # (True, None) or (False, counterexample)
+check_theorem_5_3(agents, attacks)                          # same question, literal formulation
 theorem_5_4_condition(agents, attacks, mode="walk")         # (holds, violating (agent, a, b) triples)
+explain_violations(agents, attacks)                         # ... with a witness odd path for each
 ```
 
 ## Design decisions
-* Semantics are computed by brute force (subsets / 3^n labellings): clear and fine for n <= ~12.
-* Semi-stable = admissible set with maximal range S u S+ (w.r.t. inclusion). Acceptance status is w.r.t. preferred
-  semantics by default (`semantics=` argument changes it).
-* Utility of agent i = |grounded extension ∩ A_i| where A_i is its **true** set (this also avoids the Example 5.10 misprint issue).
-* Truthfulness check: for every agent and every combination of subsets of the others' sets, revealing A_i must give
-  utility >= every other subset of A_i. Exhaustive: 2^n grounded computations per agent.
-* Theorem 5.4 condition, odd-length path on graphs with cycles: default `mode="walk"` allows repeated nodes
-  (BFS over (node, parity) states, so cycles terminate); `mode="simple"` uses simple paths only. Both are reported.
-  "Two arguments" is read as alpha != beta.
-* Random instances: n uniform in {6,7,8}; each ordered pair (a,b), a != b, is an attack with probability p; every argument is
-  assigned to one of 3 agents uniformly at random (an agent can end up with no argument). A variant with self-attacks allowed is also run.
-* Seeds are fixed (2024), so results are reproducible.
-
-## Note on the book examples
-The assignment PDF does not contain the book's examples, so `demo.py` uses standard Dung examples (chain, even cycle, odd cycle,
-stable vs semi-stable, self-attacker) and a hand-built strategic example. To test on the book's frameworks, just pass them to
-`ArgumentationFramework(args, attacks)` / `mechanism(...)`.
+* **Brute force** for semantics (subsets / 3^n labellings): clear and fine for n <= ~12.
+* **Semi-stable** = admissible set whose range S u S+ is maximal w.r.t. inclusion.
+* **Acceptance status** is computed under ONE semantics at a time (default preferred). "Rejected" means *in no extension of that semantics*.
+  If the semantics has **no extension at all** (only possible for stable) the result is the explicit label
+  `NO_EXTENSIONS` = "undefined (no extension under this semantics)": skeptical acceptance would be vacuously true and credulous acceptance false, so none of the
+  three requested labels would be honest.
+* **Utility** of agent i = |grounded extension n A_i| with A_i the agent's **true** set (this also makes the Example 5.10 misprint irrelevant).
+* **Truthfulness / Theorem 5.3.** Two independent implementations: `check_truthfulness` (bitmask grounded, best-response formulation, used in the
+  experiments) and `check_theorem_5_3` (class-based grounded, the book's inequality verbatim). `tests.py` checks that they agree on 150 random instances.
+* **Input validation.** The agents' true sets must be pairwise **disjoint** and every attack must be between owned arguments; otherwise `ValueError`
+  (the exhaustive search relies on disjointness: the union of the reports determines who revealed what).
+* **Theorem 5.4 on graphs with cycles.** "Odd-length path" is ambiguous when cycles exist, so both readings are implemented:
+  `mode="walk"` (nodes may repeat; BFS over (node, parity) states, so it terminates; this is the default) and `mode="simple"` (no repeated node).
+  "Two arguments" is read as alpha != beta. Both readings are reported in the experiments.
+* **Random instances.** n uniform in {6,7,8}; each ordered pair (a,b), a != b, is an attack with probability p in {0.15, 0.25, 0.35}; every argument goes to one
+  of 3 agents uniformly at random (an agent can end up with none). A variant that also allows self-attacks is run. Fixed seed (2024) -> reproducible.

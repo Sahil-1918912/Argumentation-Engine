@@ -1,8 +1,11 @@
 """Random experiments: strategyproofness vs. the Theorem 5.4 condition."""
-import random, json, sys
-from strategic import is_strategyproof, theorem_5_4_condition, check_truthfulness
+import random, sys
+from strategic import is_strategyproof, theorem_5_4_condition
 
 def random_instance(rng, p, self_attacks=False):
+    """One random instance: n in {6,7,8} arguments a1..an; every ordered pair (a,b) is an
+    attack with probability p (a == b only if self_attacks); each argument is given to one
+    of 3 agents uniformly at random.  Returns (agents, attacks)."""
     n = rng.randint(6, 8)
     args = [f"a{k+1}" for k in range(n)]
     attacks = {(a, b) for a in args for b in args
@@ -13,6 +16,8 @@ def random_instance(rng, p, self_attacks=False):
     return {i: frozenset(s) for i, s in agents.items()}, attacks
 
 def run(N=1000, seed=2024, self_attacks=False, ps=(0.15, 0.25, 0.35)):
+    """N random instances for each p; per instance record strategyproofness and the
+    Theorem 5.4 condition (walk and simple-path readings).  Returns {p: [row, ...]}."""
     rng = random.Random(seed)
     results = {}
     for p in ps:
@@ -28,6 +33,7 @@ def run(N=1000, seed=2024, self_attacks=False, ps=(0.15, 0.25, 0.35)):
     return results
 
 def summarise(results):
+    """Counts per p: strategyproof, condition holds, and the cross-tabulations asked for."""
     out = {}
     for p, rows in results.items():
         N = len(rows)

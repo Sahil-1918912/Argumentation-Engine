@@ -1,6 +1,9 @@
-##### PART 1: ARGUMENTATION ENGINE #####
 
-=== Ex1: chain a->b->c
+==============================================================================
+A. PART 1 - ARGUMENTATION ENGINE (classic frameworks)
+==============================================================================
+
+--- A1: chain a->b->c
 AF(args=['a', 'b', 'c'], attacks=[('a', 'b'), ('b', 'c')])
 grounded      : {a,c}
 complete      : ['{a,c}']
@@ -9,9 +12,12 @@ stable        : ['{a,c}']
 semi-stable   : ['{a,c}']
 labellings    :
     {'a': 'in', 'b': 'out', 'c': 'in'}
-acceptance (preferred): {'a': 'skeptically accepted', 'b': 'rejected', 'c': 'skeptically accepted'}
+acceptance    :
+   a: {'grounded': 'skeptically accepted', 'complete': 'skeptically accepted', 'preferred': 'skeptically accepted', 'stable': 'skeptically accepted', 'semi-stable': 'skeptically accepted'}
+   b: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'rejected', 'semi-stable': 'rejected'}
+   c: {'grounded': 'skeptically accepted', 'complete': 'skeptically accepted', 'preferred': 'skeptically accepted', 'stable': 'skeptically accepted', 'semi-stable': 'skeptically accepted'}
 
-=== Ex2: even cycle a<->b
+--- A2: even cycle a<->b
 AF(args=['a', 'b'], attacks=[('a', 'b'), ('b', 'a')])
 grounded      : {}
 complete      : ['{}', '{a}', '{b}']
@@ -22,9 +28,11 @@ labellings    :
     {'a': 'in', 'b': 'out'}
     {'a': 'out', 'b': 'in'}
     {'a': 'undec', 'b': 'undec'}
-acceptance (preferred): {'a': 'credulously accepted', 'b': 'credulously accepted'}
+acceptance    :
+   a: {'grounded': 'rejected', 'complete': 'credulously accepted', 'preferred': 'credulously accepted', 'stable': 'credulously accepted', 'semi-stable': 'credulously accepted'}
+   b: {'grounded': 'rejected', 'complete': 'credulously accepted', 'preferred': 'credulously accepted', 'stable': 'credulously accepted', 'semi-stable': 'credulously accepted'}
 
-=== Ex3: odd cycle a->b->c->a
+--- A3: odd cycle a->b->c->a   (no stable extension -> acceptance is 'undefined' under stable)
 AF(args=['a', 'b', 'c'], attacks=[('a', 'b'), ('b', 'c'), ('c', 'a')])
 grounded      : {}
 complete      : ['{}']
@@ -33,9 +41,12 @@ stable        : []
 semi-stable   : ['{}']
 labellings    :
     {'a': 'undec', 'b': 'undec', 'c': 'undec'}
-acceptance (preferred): {'a': 'rejected', 'b': 'rejected', 'c': 'rejected'}
+acceptance    :
+   a: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'undefined (no extension under this semantics)', 'semi-stable': 'rejected'}
+   b: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'undefined (no extension under this semantics)', 'semi-stable': 'rejected'}
+   c: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'undefined (no extension under this semantics)', 'semi-stable': 'rejected'}
 
-=== Ex4: stable vs semi-stable (b kills c, but c-d-e is an odd cycle)
+--- A4: b kills c, but c-d-e is an odd cycle
 AF(args=['a', 'b', 'c', 'd', 'e'], attacks=[('a', 'b'), ('b', 'a'), ('b', 'c'), ('c', 'd'), ('d', 'e'), ('e', 'c')])
 grounded      : {}
 complete      : ['{}', '{a}', '{b,d}']
@@ -46,9 +57,14 @@ labellings    :
     {'a': 'in', 'b': 'out', 'c': 'undec', 'd': 'undec', 'e': 'undec'}
     {'a': 'out', 'b': 'in', 'c': 'out', 'd': 'in', 'e': 'out'}
     {'a': 'undec', 'b': 'undec', 'c': 'undec', 'd': 'undec', 'e': 'undec'}
-acceptance (preferred): {'a': 'credulously accepted', 'b': 'credulously accepted', 'c': 'rejected', 'd': 'credulously accepted', 'e': 'rejected'}
+acceptance    :
+   a: {'grounded': 'rejected', 'complete': 'credulously accepted', 'preferred': 'credulously accepted', 'stable': 'rejected', 'semi-stable': 'rejected'}
+   b: {'grounded': 'rejected', 'complete': 'credulously accepted', 'preferred': 'credulously accepted', 'stable': 'skeptically accepted', 'semi-stable': 'skeptically accepted'}
+   c: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'rejected', 'semi-stable': 'rejected'}
+   d: {'grounded': 'rejected', 'complete': 'credulously accepted', 'preferred': 'credulously accepted', 'stable': 'skeptically accepted', 'semi-stable': 'skeptically accepted'}
+   e: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'rejected', 'semi-stable': 'rejected'}
 
-=== Ex5: self-attacker
+--- A5: self-attacker a
 AF(args=['a', 'b', 'c'], attacks=[('a', 'a'), ('a', 'b'), ('c', 'a')])
 grounded      : {b,c}
 complete      : ['{b,c}']
@@ -57,27 +73,94 @@ stable        : ['{b,c}']
 semi-stable   : ['{b,c}']
 labellings    :
     {'a': 'out', 'b': 'in', 'c': 'in'}
-acceptance (preferred): {'a': 'rejected', 'b': 'skeptically accepted', 'c': 'skeptically accepted'}
+acceptance    :
+   a: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'rejected', 'semi-stable': 'rejected'}
+   b: {'grounded': 'skeptically accepted', 'complete': 'skeptically accepted', 'preferred': 'skeptically accepted', 'stable': 'skeptically accepted', 'semi-stable': 'skeptically accepted'}
+   c: {'grounded': 'skeptically accepted', 'complete': 'skeptically accepted', 'preferred': 'skeptically accepted', 'stable': 'skeptically accepted', 'semi-stable': 'skeptically accepted'}
 
-Q2-Q5 spot checks on chain a->b->c->d:
- {a,c} conflict-free: True | {a,b}: False
- {a} defends c: True | F({a}) = {a,c}
- {a,c} admissible: True complete: True
- {a,c} complete: True | {a} complete: False
+--- Q2-Q5 building blocks on the chain a->b->c->d
+ {a,c} conflict-free: True | {a,b} conflict-free: False
+ {a} defends c: True | {} defends c: False
+ F({}) = {a} | F({a}) = {a,c} | F({a,c}) = {a,c}
+ {a,c} admissible: True | complete: True
+ {a}   admissible: True | complete: False (F({a}) = {a,c} is bigger)
 
+==============================================================================
+B. PART 1 on the book's Example 5.10 graph  (a1->a2->a3->a4, a3->a5)
+==============================================================================
 
-##### PART 2: STRATEGIC ARGUMENTATION #####
-agents: {1: '{alpha,beta}', 2: '{d,e}'} 
-attacks: [('alpha', 'beta'), ('alpha', 'd'), ('d', 'e'), ('e', 'alpha')]
-truthful grounded extension: {} -> utility agent1 = 0
-best responses of agent 1 vs. agent 2 truthful: utility 1 ['{beta}']
-truthfulness (Thm 5.3 check) holds? False | counterexample: {'agent': 1, 'others_reports': {2: frozenset({'d', 'e'})}, 'truthful_utility': 0, 'deviation': frozenset({'beta'}), 'deviation_utility': 1}
-Thm 5.4 condition holds? (False, [(1, 'alpha', 'beta'), (2, 'd', 'e'), (2, 'e', 'd')])
-strategyproof? False
+--- Example 5.10, all five arguments
+AF(args=['a1', 'a2', 'a3', 'a4', 'a5'], attacks=[('a1', 'a2'), ('a2', 'a3'), ('a3', 'a4'), ('a3', 'a5')])
+grounded      : {a1,a3}
+complete      : ['{a1,a3}']
+preferred     : ['{a1,a3}']
+stable        : ['{a1,a3}']
+semi-stable   : ['{a1,a3}']
+labellings    :
+    {'a1': 'in', 'a2': 'out', 'a3': 'in', 'a4': 'out', 'a5': 'out'}
+acceptance    :
+   a1: {'grounded': 'skeptically accepted', 'complete': 'skeptically accepted', 'preferred': 'skeptically accepted', 'stable': 'skeptically accepted', 'semi-stable': 'skeptically accepted'}
+   a2: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'rejected', 'semi-stable': 'rejected'}
+   a3: {'grounded': 'skeptically accepted', 'complete': 'skeptically accepted', 'preferred': 'skeptically accepted', 'stable': 'skeptically accepted', 'semi-stable': 'skeptically accepted'}
+   a4: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'rejected', 'semi-stable': 'rejected'}
+   a5: {'grounded': 'rejected', 'complete': 'rejected', 'preferred': 'rejected', 'stable': 'rejected', 'semi-stable': 'rejected'}
 
-Same attacks, one argument per agent:
- Thm 5.4 condition: True | strategyproof: True
+==============================================================================
+C. PART 2 - GROUNDED DIRECT ARGUMENTATION MECHANISM (book examples)
+==============================================================================
+Example 5.10 / Figure 5.4(a): agents {'x': '{a1,a4,a5}', 'y': '{a2}', 'z': '{a3}'}
+  attacks: [('a1', 'a2'), ('a2', 'a3'), ('a3', 'a4'), ('a3', 'a5')]
+  everybody truthful -> outcome {a1,a3} (book: {a1,a3})
+  utilities  x: 1  y: 0  z: 1   (book prints y and z swapped - misprint; code uses each agent's own set)
+  x hides a1 (Figure 5.4(b)) -> outcome {a2,a4,a5} -> utility of x = 2 (book: 2)
+  best responses of x when the others are truthful: utility 2, reports ['{a4,a5}']
+  best responses of y when the others are truthful: utility 0, reports ['{}', '{a2}']
+  best responses of z when the others are truthful: utility 1, reports ['{a3}']
+  Theorem 5.3 check (best-response form) holds? False
+     counterexample: {'agent': 'x', 'truthful_utility': 1, 'deviation': '{a4,a5}', 'deviation_utility': 2} others: {'y': '{a2}', 'z': '{a3}'}
+  Theorem 5.3 check (literal inequality form) agrees? True
+  Theorem 5.4 condition holds? False
+     agent x: odd path a1 ~> a4: a1 -> a2 -> a3 -> a4 (length 3)
+     agent x: odd path a1 ~> a5: a1 -> a2 -> a3 -> a5 (length 3)
+  => not strategyproof, and the condition correctly fails.
 
-Cycle handling: odd path x->..->y?  walk: True  simple: True
-odd path y->..->x?  walk: True  simple: False
-odd path z->..->b?  walk: True  simple: False
+Example 5.11 / Figure 5.5: x also owns a6, extra attack (a6,a3)
+  everybody truthful -> outcome {a1,a4,a5,a6} (book: {a1,a4,a5,a6});  utility of x = 4 of 4
+  strategyproof? True | Theorem 5.3 literal check: True
+  Theorem 5.4 condition holds? False
+     agent x: odd path a1 ~> a4: a1 -> a2 -> a3 -> a4
+     agent x: odd path a1 ~> a5: a1 -> a2 -> a3 -> a5
+  => strategyproof although the condition FAILS: the condition is sufficient, not necessary.
+     Reason: a6 is unattacked, so as long as x reveals it a6 is in and a3 is out; then a1 -> a2 -> a3
+     can no longer kill a4/a5, and hiding a1 would only cost x an argument.
+     (The book's text names a5 as the cancelling argument - misprint, it is a6.)
+
+==============================================================================
+D. THEOREM 5.4 - condition holds / condition fails
+==============================================================================
+Condition HOLDS (non-vacuous): agent 1 = {a,b}, agent 2 = {c}, attacks a->c, c->b.
+  The only path from a to b is a->c->b, of EVEN length 2.
+  condition: True | strategyproof: True
+
+Condition FAILS and mechanism NOT strategyproof: agent 1 = {alpha,beta}, agent 2 = {d,e},
+  attacks alpha->beta, alpha->d, d->e, e->alpha  (alpha,d,e form an odd cycle)
+  truthful outcome: {} -> utility of agent 1 = 0
+  best response of agent 1: ['{beta}'] -> utility 1 (hiding alpha frees beta)
+  condition: False | strategyproof: False
+     agent 1: odd path alpha ~> beta: alpha -> beta
+     agent 2: odd path d ~> e: d -> e
+     agent 2: odd path e ~> d: e -> alpha -> d -> e -> alpha -> d
+
+Same attacks, one argument per agent (no agent holds two arguments, condition vacuous):
+  condition: True | strategyproof: True
+
+==============================================================================
+E. CYCLES in the odd-path test
+==============================================================================
+attacks: [('x', 'b'), ('x', 'y'), ('y', 'z'), ('z', 'x')]   (x->y->z->x is a 3-cycle)
+ odd path x ~> y?  walk: True  ['x', 'y']   simple path: True
+ odd path y ~> x?  walk: True  ['y', 'z', 'x', 'y', 'z', 'x']   simple path: False
+ odd path z ~> b?  walk: True  ['z', 'x', 'y', 'z', 'x', 'b']   simple path: False
+A 'walk' may go around a cycle (repeat nodes); a 'simple path' may not. Both readings are
+implemented; the experiments report both. Walk search = BFS over (node, parity) states, so it
+always terminates even though cycles make the number of walks infinite.

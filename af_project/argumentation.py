@@ -3,9 +3,12 @@ Part 1 - Argumentation Engine (Dung-style abstract argumentation frameworks).
 
 An AF is a pair <A, ->> : a finite set of arguments A and an attack relation
 (a, b) meaning "a attacks b".  Everything is brute force over subsets / labellings,
-which is fine for the small frameworks used in the course (n <= ~15).
+which is fine for the small frameworks used in the course (n <= ~12).
 """
 from itertools import combinations, product
+
+# Returned by acceptance_status when the chosen semantics has no extension (stable only).
+NO_EXTENSIONS = "undefined (no extension under this semantics)"
 
 
 class ArgumentationFramework:
@@ -112,15 +115,25 @@ class ArgumentationFramework:
         rng = {S: S | self.attacked_by(S) for S in adm}
         return [S for S in adm if not any(rng[S] < rng[T] for T in adm)]
 
+    SEMANTICS = ("grounded", "complete", "preferred", "stable", "semi-stable")
+
+    def extensions(self, semantics):
+        """The list of extensions under ONE named semantics (only that one is computed)."""
+        if semantics == "grounded":
+            return [self.grounded_extension()]
+        if semantics == "complete":
+            return self.complete_extensions()
+        if semantics == "preferred":
+            return self.preferred_extensions()
+        if semantics == "stable":
+            return self.stable_extensions()
+        if semantics == "semi-stable":
+            return self.semi_stable_extensions()
+        raise ValueError(f"unknown semantics {semantics!r}; choose from {self.SEMANTICS}")
+
     def all_extensions(self):
         """(C) dict with every semantics."""
-        return {
-            "grounded": [self.grounded_extension()],
-            "complete": self.complete_extensions(),
-            "preferred": self.preferred_extensions(),
-            "stable": self.stable_extensions(),
-            "semi-stable": self.semi_stable_extensions(),
-        }
+        return {s: self.extensions(s) for s in self.SEMANTICS}
 
     # ---------- labellings ----------
     def is_legal_labelling(self, lab):
@@ -156,15 +169,30 @@ class ArgumentationFramework:
 
     # ---------- acceptance ----------
     def acceptance_status(self, a, semantics="preferred"):
-        """(E) 'skeptically accepted' (in every extension), 'credulously accepted'
-        (in some but not all), or 'rejected' (in none)."""
-        exts = self.all_extensions()[semantics]
-        if not exts:                      # e.g. no stable extension
-            return "rejected"
+        """(E) Status of argument `a` under ONE semantics (only that semantics is computed):
+          'skeptically accepted'  : a is in EVERY extension
+          'credulously accepted'  : a is in SOME but not all extensions
+          'rejected'              : a is in NO extension
+          NO_EXTENSIONS           : the semantics has no extension at all (only possible for
+                                    stable).  Skeptical acceptance would then be vacuously
+                                    true and credulous acceptance false, so neither of the
+                                    three labels is meaningful; we say so explicitly instead
+                                    of silently picking one.
+        Note 'rejected' means "in no extension of THIS semantics"; under preferred semantics
+        an argument can be rejected yet still undecided in the grounded labelling."""
+        if a not in self.arguments:
+            raise ValueError(f"unknown argument {a!r}")
+        exts = self.extensions(semantics)
+        if not exts:
+            return NO_EXTENSIONS
         n_in = sum(a in E for E in exts)
         if n_in == len(exts):
             return "skeptically accepted"
         return "credulously accepted" if n_in else "rejected"
+
+    def acceptance_by_semantics(self, a):
+        """Status of `a` under every semantics, e.g. {'grounded': ..., 'stable': ...}."""
+        return {s: self.acceptance_status(a, s) for s in self.SEMANTICS}
 
 
 # Convenience function-style API (the assignment asks for "functions").
@@ -178,3 +206,4 @@ def complete_extensions(af): return af.complete_extensions()
 def all_extensions(af): return af.all_extensions()
 def legal_labellings(af): return af.labellings()
 def acceptance_status(af, a, semantics="preferred"): return af.acceptance_status(a, semantics)
+def extensions(af, semantics): return af.extensions(semantics)
